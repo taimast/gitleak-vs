@@ -1,71 +1,47 @@
-# gitleak-vs README
+# gitleak-vs
 
-This is the README for your extension "gitleak-vs". After writing up a brief description, we recommend including the following sections.
+gitleak-vs is a Visual Studio Code extension that helps you detect potential secrets in your code using [Gitleaks](https://github.com/zricethezav/gitleaks). It scans for sensitive information exposed in your codebase and highlights them within the editor, allowing you to address potential security issues promptly.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- Automatically scans the active file on save for secrets using Gitleaks.
+- Highlights potential secret exposures directly in the editor.
+- Supports JSON output for scanned results stored in a dedicated directory.
+- Configurable activation based on your coding language (default is Python).
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+Make sure you have [Gitleaks](https://github.com/zricethezav/gitleaks) installed on your system. You can install it via Homebrew on macOS:
 
-## Extension Settings
+```bash
+brew install gitleaks
+```
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+Or download pre-built binaries for your OS from the Gitleaks GitHub releases page.
 
-For example:
+## Installation
 
-This extension contributes the following settings:
+1. Clone this repository or download the source code.
+2. Open the project in Visual Studio Code.
+3. Run `yarn install` to install dependencies.
+4. Compile the extension with `yarn run compile`.
+5. Press `F5` to start a new VS Code instance with the extension loaded.
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+## Usage
 
-## Known Issues
+- Save a file in your project, and the extension will automatically run Gitleaks on it.
+- If it finds potential secrets, the lines will be highlighted in the editor.
+- You can view details about the leaks by hovering over the highlighted lines.
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+## Development
 
-## Release Notes
+To contribute to the project, you can run the tests with:
 
-Users appreciate release notes as you update your extension.
+```bash
+yarn test
+```
 
-### 1.0.0
+To lint the code, use:
 
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+```bash
+yarn lint
