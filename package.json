@@ -10,14 +10,14 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onLanguage"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "gitleak-vs.helloWorld",
-        "title": "Hello World"
+        "command": "gitleak-vs.checkAllFiles",
+        "title": "Check All Files for Secrets"
       }
     ]
   },
