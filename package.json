@@ -22,7 +22,7 @@
     "commands": [
       {
         "command": "gitleak-vs.checkProject",
-        "title": "Check Project for Leaks"
+        "title": "gitleak-vs: Check Project for Secrets"
       }
     ]
   },
