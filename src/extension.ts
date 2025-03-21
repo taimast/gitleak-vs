@@ -1,26 +1,86 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
+import { exec } from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import * as vscode from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "gitleak-vs" is now active!');
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('gitleak-vs.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello VS Code gitleak-vs!');
-	});
+	context.subscriptions.push(
+		vscode.workspace.onDidSaveTextDocument(doc => {
 
-	context.subscriptions.push(disposable);
+			const homeDir = os.homedir();
+			const leaksDir = path.join(homeDir, '.gitleaks-vs');
+			const leaksFilePath = path.join(leaksDir, 'leaks.json');
+
+			// Создаём папку, если она не существует
+			if (!fs.existsSync(leaksDir)) {
+				fs.mkdirSync(leaksDir, { recursive: true });
+			}
+			// Вызываем gitleaks и выводим результаты в .gitleaks-vs/leaks.json
+			exec(`gitleaks dir -r ${leaksFilePath} ` + doc.uri.fsPath, (error, stdout, stderr) => {
+
+				if (error) {
+					if (error.message.includes('leaks found: ')) {
+						// После выполнения gitleaks, парсим leaks.json
+						highlightSecrets(doc, []); // Очищаем подсветку
+						parseGitleaksOutput(doc, leaksFilePath);
+						return;
+					} else {
+						console.error(`Error running gitleaks: ${error.message}`);
+						return;
+					}
+				} else {
+					highlightSecrets(doc, []); // Очищаем подсветку
+
+				}
+
+			});
+		})
+	);
 }
 
-// This method is called when your extension is deactivated
+function parseGitleaksOutput(doc: vscode.TextDocument, leaksFilePath: string) {
+	// Читаем содержимое файла leaks.json
+	fs.readFile(leaksFilePath, 'utf8', (err, data) => {
+		if (err) {
+			console.error(`Error reading ${leaksFilePath}: ${err}`);
+			return;
+		}
+
+		try {
+			const leaks = JSON.parse(data); // Парсим JSON-данные
+			const secretRanges: vscode.Range[] = [];
+
+			// Обходим каждый объект в массиве leaks
+			leaks.forEach((leak: any) => {
+				const startLine = leak.StartLine - 1; // zero-based index
+				const endLine = leak.EndLine - 1; // zero-based index
+				const startPos = new vscode.Position(startLine, leak.StartColumn - 1);
+				const endPos = new vscode.Position(endLine, leak.EndColumn);
+				secretRanges.push(new vscode.Range(startPos, endPos));
+			});
+
+			// Добавление декоратора для выделения секретов
+			highlightSecrets(doc, secretRanges);
+		} catch (parseError) {
+			console.error(`Error parsing ${leaksFilePath}: ${parseError}`);
+		}
+	});
+}
+
+function highlightSecrets(doc: vscode.TextDocument, secretRanges: vscode.Range[]) {
+	// Декоратор для подсветки
+	const decorationType = vscode.window.createTextEditorDecorationType({
+		backgroundColor: 'rgba(255, 0, 0, 0.3)', // Красный фон
+		border: '1px solid red' // Красная рамка
+	});
+
+	const editor = vscode.window.activeTextEditor;
+	if (editor && editor.document === doc) {
+		editor.setDecorations(decorationType, secretRanges);
+	}
+}
+
 export function deactivate() { }
