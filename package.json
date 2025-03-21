@@ -1,8 +1,8 @@
 {
   "name": "gitleak-vs",
   "displayName": "gitleak-vs",
-  "description": "",
-  "version": "0.0.1",
+  "description": "A Visual Studio Code extension to check your project for secrets using gitleak",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.93.1"
   },
