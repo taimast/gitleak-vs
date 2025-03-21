@@ -21,8 +21,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "gitleak-vs.checkAllFiles",
-        "title": "Check All Files for Secrets"
+        "command": "gitleak-vs.checkProject",
+        "title": "Check Project for Leaks"
       }
     ]
   },

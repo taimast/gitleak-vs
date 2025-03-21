@@ -1,44 +1,62 @@
-import { exec } from 'child_process';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
-import * as vscode from 'vscode';
+import { exec } from "child_process";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import * as vscode from "vscode";
 
-const diagnosticCollection = vscode.languages.createDiagnosticCollection('gitleaks');
+const diagnosticCollection =
+	vscode.languages.createDiagnosticCollection("gitleaks");
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "gitleak-vs" is now active!');
 
-	context.subscriptions.push(
-		vscode.workspace.onDidSaveTextDocument(doc => {
-			const homeDir = os.homedir();
-			const leaksDir = path.join(homeDir, '.gitleaks-vs');
-			const leaksFilePath = path.join(leaksDir, 'leaks.json');
-
-			// Создаём папку, если она не существует
-			if (!fs.existsSync(leaksDir)) {
-				fs.mkdirSync(leaksDir, { recursive: true });
-			}
-			// Вызываем gitleaks и выводим результаты в .gitleaks-vs/leaks.json
-			exec(`gitleaks dir -r ${leaksFilePath} ` + doc.uri.fsPath, (error, stdout, stderr) => {
-				if (error) {
-					if (error.message.includes('leaks found: ')) {
-						parseGitleaksOutput(doc, leaksFilePath);
-						return;
-					} else {
-						console.error(`Error running gitleaks: ${error.message}`);
-						return;
-					}
-				} else {
-					clearDiagnostics(doc);
-				}
-			});
-		})
+	let disposable = vscode.commands.registerCommand(
+		"gitleak-vs.checkProject",
+		() => {
+			checkProjectForLeaks();
+		},
 	);
+
+	context.subscriptions.push(disposable);
+}
+function checkProjectForLeaks() {
+	const homeDir = os.homedir();
+	const leaksDir = path.join(homeDir, '.gitleaks-vs');
+	const leaksFilePath = path.join(leaksDir, 'leaks.json');
+
+	// Создаём папку, если она не существует
+	if (!fs.existsSync(leaksDir)) {
+		fs.mkdirSync(leaksDir, { recursive: true });
+	}
+
+	// Получаем корневую папку проекта
+	const workspaceFolder = vscode.workspace.workspaceFolders?.[0]; // Берём первую папку из списка
+
+	console.log(workspaceFolder);
+	if (!workspaceFolder) {
+		vscode.window.showErrorMessage('No workspace folder found.');
+		return;
+	}
+
+
+	// Вызываем gitleaks и выводим результаты в .gitleaks-vs/leaks.json
+	// exec(`gitleaks detect --source=${workspaceFolder.uri.fsPath} --report=${leaksFilePath}`, (error, stdout, stderr) => {
+	exec(`gitleaks dir -r ${leaksFilePath} ` + workspaceFolder.uri.fsPath, (error, stdout, stderr) => {
+		if (error) {
+			if (error.message.includes('leaks found: ')) {
+				// Вызываем метод для обработки результата
+				parseGitleaksOutput(leaksFilePath);
+			} else {
+				console.error(`Error running gitleaks: ${error.message}`);
+			}
+		} else {
+			// Очищаем диагностику, если утечек не найдено
+			clearDiagnostics();
+		}
+	});
 }
 
-function parseGitleaksOutput(doc: vscode.TextDocument, leaksFilePath: string) {
-	// Читаем содержимое файла leaks.json
+function parseGitleaksOutput(leaksFilePath: string) {
 	fs.readFile(leaksFilePath, 'utf8', (err, data) => {
 		if (err) {
 			console.error(`Error reading ${leaksFilePath}: ${err}`);
@@ -47,12 +65,21 @@ function parseGitleaksOutput(doc: vscode.TextDocument, leaksFilePath: string) {
 
 		try {
 			const leaks = JSON.parse(data); // Парсим JSON-данные
-			const diagnostics: vscode.Diagnostic[] = [];
+			const diagnosticsMap: Map<string, vscode.Diagnostic[]> = new Map(); // Карта для хранения диагностики по каждому файлу
 
 			// Обходим каждый объект в массиве leaks
 			leaks.forEach((leak: any) => {
-				const startLine = leak.StartLine - 1; // zero-based index
-				const endLine = leak.EndLine - 1; // zero-based index
+				const workspaceFolder = vscode.workspace.workspaceFolders?.[0]; // Берём первую папку из списка
+				if (!workspaceFolder) {
+					console.error('No workspace folder found.');
+					return;
+				}
+
+				const filePath = path.join(workspaceFolder.uri.fsPath, leak.File);
+				const docUri = vscode.Uri.file(filePath); // Путь к файлу
+
+				const startLine = leak.StartLine - 1; // нумерация с нуля
+				const endLine = leak.EndLine - 1; // нумерация с нуля
 				const startPos = new vscode.Position(startLine, leak.StartColumn - 1);
 				const endPos = new vscode.Position(endLine, leak.EndColumn);
 
@@ -63,23 +90,29 @@ function parseGitleaksOutput(doc: vscode.TextDocument, leaksFilePath: string) {
 					vscode.DiagnosticSeverity.Warning
 				);
 
-				diagnostics.push(diagnostic);
+				// Добавляем диагностику в карту, создавая новый массив, если необходимо
+				if (!diagnosticsMap.has(docUri.toString())) {
+					diagnosticsMap.set(docUri.toString(), []);
+				}
+				diagnosticsMap.get(docUri.toString())!.push(diagnostic);
 			});
 
-			// Обновление диагностики в редакторе
-			updateDiagnostics(doc.uri, diagnostics);
+			// Обновление диагностики в редакторе для каждого файла
+			diagnosticsMap.forEach((diagnostics, uriString) => {
+				updateDiagnostics(vscode.Uri.parse(uriString), diagnostics);
+			});
 		} catch (parseError) {
 			console.error(`Error parsing ${leaksFilePath}: ${parseError}`);
 		}
 	});
 }
-
 function updateDiagnostics(uri: vscode.Uri, diagnostics: vscode.Diagnostic[]) {
 	diagnosticCollection.set(uri, diagnostics);
 }
 
-function clearDiagnostics(doc: vscode.TextDocument) {
-	diagnosticCollection.set(doc.uri, []);
+// Очистка сообщений о диагностике
+function clearDiagnostics() {
+	diagnosticCollection.clear();
 }
 
 export function deactivate() {
