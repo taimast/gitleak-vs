@@ -90,6 +90,8 @@ function parseGitleaksOutput(leaksFilePath: string) {
 
 			const workspacePath = workspaceFolder.uri.fsPath; // Физический путь к корню рабочего пространства
 
+			let leaksCount = leaks.length;
+
 			leaks.forEach((leak: any) => {
 				const absoluteFilePath = leak.File; // Обратите внимание, что это абсолютный путь
 
@@ -123,6 +125,12 @@ function parseGitleaksOutput(leaksFilePath: string) {
 				console.log(`Updating diagnostics for ${uriString}`);
 				updateDiagnostics(vscode.Uri.parse(uriString), diagnostics);
 			});
+			// Вывод общего количества найденных утечек
+			if (leaksCount > 0) {
+				vscode.window.showInformationMessage(`Found ${leaksCount} leaks.`);
+			} else {
+				vscode.window.showInformationMessage("No leaks found.");
+			}
 		} catch (parseError) {
 			console.error(`Error parsing ${leaksFilePath}: ${parseError}`);
 		}
